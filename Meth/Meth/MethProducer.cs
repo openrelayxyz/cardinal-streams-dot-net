@@ -75,6 +75,15 @@ namespace Meth
             _Producer.AddBrokers(newServer);
         }
 
+
+        public byte[] AddPrefixByte(byte[] bArray, byte PreFixByte)
+        {
+            byte[] newArray = new byte[bArray.Length + 1];
+            bArray.CopyTo(newArray, 1);
+            newArray[0] = PreFixByte;
+            return newArray;
+        }
+
         /// <summary>
         ///  Add Block Meth API call
         /// </summary>
@@ -90,6 +99,26 @@ namespace Meth
         public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches )
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
+
+            //message 0 key is prefix 00 with hashbyte array as key 
+            //todo make this a method -- go from procedural to object
+            var msg0 = new Message<byte[], string>();
+
+            msg0.Key = AddPrefixByte(hash, 0x00);
+            Console.WriteLine("Message 0 key " + msg0.Key.ToString());
+            string num = "\"num\": "+ number +",\n  ";
+            string w = "\"weight\": " + weight.ToString() + ",\n  ";
+            string p = "\"parent\": " + parentHash.ToString() + ",\n  ";
+
+            string updatesstring = GetUpdatesCountStrings(updates);
+            string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
+
+            string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
+            Console.WriteLine("Unencoded message 0 looks like this : \n\n" + nonEncoded);
+
+            
+            //avro encoding step needed
+            msg0.Value = nonEncoded;
 
             //create messages
 
@@ -119,6 +148,39 @@ namespace Meth
                 Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
             }
             return;
+        }
+
+        //gets the counts per update type 
+        // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678 }
+        // "a/": {"count": 1},
+        // "b/": {"count": 1},
+        // "q/": {"count": 2},
+        private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
+        {
+            int aCount =0;
+            int bCount =0;
+            int qCount =0;
+            string result = "";
+            foreach( var entry in updates)
+            {
+                if (entry.Key.Contains("a"))
+                {
+                    aCount++;
+                }
+                if (entry.Key.Contains("b"))
+                {
+                    bCount++;
+                }
+                if (entry.Key.Contains("q"))
+                {
+                    qCount++;
+                }
+            }
+            if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
+            if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
+            if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
+
+            return result;
         }
 
         public void ReOrg()
