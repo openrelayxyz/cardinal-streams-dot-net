@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Confluent.Kafka;
 using System;
 using Microsoft.Extensions.Configuration;
+using Avro;
 
 namespace Meth
 {
@@ -123,17 +124,25 @@ namespace Meth
 
             string aandb = "a/b";
             byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
-            Console.WriteLine(PrettyPrintByteArray(aandbBA));
+            Console.WriteLine(Convert.ToHexString(aandbBA));
 
 
             //avro encoding step needed
             msg0.Value = nonEncoded;
 
+            
+           
             //create messages
-
+            var outStream = new Avro.IO.ByteBufferOutputStream();
+            var encoder = new Avro.IO.BinaryEncoder(outStream);
             //avro encode
+            
+            encoder.WriteString(nonEncoded); //need to come back to this, not sure how to get encoded value back out
+            Console.WriteLine("Encoded msg 0  " + nonEncoded);
+            
+            //send msg0 
 
-            //send
+            //prep and send messages associated with msg0
 
 
             //For each match create message, encode, and send (Avro Encoded)
