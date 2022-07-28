@@ -84,6 +84,11 @@ namespace Meth
             return newArray;
         }
 
+        public string PrettyPrintByteArray(byte[] array)
+        {
+            return "0x" + Convert.ToHexString(array);
+        }
+
         /// <summary>
         ///  Add Block Meth API call
         /// </summary>
@@ -96,19 +101,19 @@ namespace Meth
         /// <param name="batches"> Example: Subbatches: {"b/s": 0x0000000000000000000000000000000000000000000000000000000000000001} Subbatch details: Updates: { "b/s/5": 0xabcd } Deletes: ["b/s/4"]</param>
         ///    batches param type might need tweeking since there are subbatches? 
         /// <returns></returns>
-        public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches )
+        public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
 
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
             var msg0 = new Message<byte[], string>();
-
             msg0.Key = AddPrefixByte(hash, 0x00);
-            Console.WriteLine("Message 0 key " + msg0.Key.ToString());
-            string num = "\"num\": "+ number +",\n  ";
-            string w = "\"weight\": " + weight.ToString() + ",\n  ";
-            string p = "\"parent\": " + parentHash.ToString() + ",\n  ";
+            Console.WriteLine(" Message 0 Key is " + PrettyPrintByteArray(msg0.Key));
+
+            string num = "\"num\": " + number + ",\n  ";
+            string w = "\"weight\": " + PrettyPrintByteArray(weight) + ",\n  ";
+            string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
             string updatesstring = GetUpdatesCountStrings(updates);
             string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
@@ -116,7 +121,11 @@ namespace Meth
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
             Console.WriteLine("Unencoded message 0 looks like this : \n\n" + nonEncoded);
 
-            
+            string aandb = "a/b";
+            byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
+            Console.WriteLine(PrettyPrintByteArray(aandbBA));
+
+
             //avro encoding step needed
             msg0.Value = nonEncoded;
 
@@ -149,6 +158,8 @@ namespace Meth
             }
             return;
         }
+
+        //get
 
         //gets the counts per update type 
         // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678 }

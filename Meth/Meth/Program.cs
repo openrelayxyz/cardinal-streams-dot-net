@@ -15,7 +15,8 @@ var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-e
 //var improved = new Meth.WrappedMethProducer("z-2.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:2181", "interestingTopic", test); // "WrappedLib");
 
 
-//string hashString = "0xdeadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff";
+string hashString = "deadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff";
+byte[] easyHash = Convert.FromHexString(hashString);
 
 byte[] hash = new byte[] { 0xde, 0xad, 0xbe, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff };
 byte[] parent = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -33,7 +34,7 @@ var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c
 Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() { };// empty for now... need to figure out batches datatype, since it has subbatches
 
 //call add block with the variables from the example documentation
-await improved.AddBlock(1337, hash, parent, weight, updates, deletes, batches );//currently params undefined
+await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );//currently params undefined
 
 
 Thread.Sleep(10000);
