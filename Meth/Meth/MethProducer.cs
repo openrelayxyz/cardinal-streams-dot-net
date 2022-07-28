@@ -122,27 +122,30 @@ namespace Meth
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
             Console.WriteLine("Unencoded message 0 looks like this : \n\n" + nonEncoded);
 
-            string aandb = "a/b";
-            byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
-            Console.WriteLine(Convert.ToHexString(aandbBA));
+            //string aandb = "a/b";
+            //byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
+            //Console.WriteLine(Convert.ToHexString(aandbBA));
 
 
             //avro encoding step needed
             msg0.Value = nonEncoded;
 
-            
-           
+
+
             //create messages
             var outStream = new Avro.IO.ByteBufferOutputStream();
             var encoder = new Avro.IO.BinaryEncoder(outStream);
             //avro encode
-            
-            encoder.WriteString(nonEncoded); //need to come back to this, not sure how to get encoded value back out
-            Console.WriteLine("Encoded msg 0  " + nonEncoded);
-            
+
+            //encoder.WriteString(nonEncoded); //need to come back to this, not sure how to get encoded value back out
+            //Console.WriteLine("Encoded msg 0  " + nonEncoded);
+
             //send msg0 
 
             //prep and send messages associated with msg0
+
+            var messages = new List<Message<byte[], byte[]>>();
+            AddUpdatesToMessages(hash, updates, messages);
 
 
             //For each match create message, encode, and send (Avro Encoded)
@@ -166,6 +169,27 @@ namespace Meth
                 Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
             }
             return;
+        }
+
+        private void AddUpdatesToMessages(byte[] hash, Dictionary<string, byte[]> updates, List<Message<byte[], byte[]>> messages)
+        {
+            foreach (var u in updates)
+            {
+                var m = new Message<byte[], byte[]>();
+                byte[] post = Encoding.UTF8.GetBytes(u.Key); //for end of byte array
+                byte[] tmp = AddPrefixByte(hash, 0x03);
+
+                var s = new MemoryStream();
+                s.Write(tmp, 0, tmp.Length);
+                s.Write(post, 0, post.Length);
+                var key = s.ToArray();
+
+                m.Key = key;
+                m.Value = u.Value;
+                messages.Add(m);
+
+                Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+            }
         }
 
         //get
