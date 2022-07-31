@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Meth;  //will change name and reorganize before any commiting or delivery
+using Meth;  
 
 Console.WriteLine("Hello, World!");
 
@@ -10,7 +10,8 @@ Dictionary<string, string> test = new Dictionary<string, string>();
 
 //second pass
 Console.WriteLine("Creating Improved producer");
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "interestingTopic", test); // "WrappedLib");
+//not sure if a/b/q/ goes in topic or schema map
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "a/b/q/", test); // "WrappedLib");
 
 //var improved = new Meth.WrappedMethProducer("z-2.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:2181", "interestingTopic", test); // "WrappedLib");
 
@@ -27,11 +28,17 @@ byte[] weight = new byte[] { 0x26, 0x74 };
 Dictionary<string, byte[]> updates = new Dictionary<string, byte[]>(){
     { "a/b", new byte[] {0x88} },
     {"q/17", new byte[] {0x12, 0x34} },
-    { "q/18", new byte[] {0x56, 0x78 } }
+    { "q/18", new byte[] {0x56, 0x78 } },
+    { "x/19", new byte[] { 0x99, 0x99 } }
 };
 
 var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c", "t/g"]
-Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() { };// empty for now... need to figure out batches datatype, since it has subbatches
+Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
+    {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")}
+};// ... need to figure out batches datatype, since it has subbatches
+//batches included in message 0 "b/s": {"subbatch": 0x0000000000000000000000000000000000000000000000000000000000000001} in addblock
+//batches and subbatch details not sent up until SendBatches called messages 5,6,7
+
 
 //call add block with the variables from the example documentation
 await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );//currently params undefined

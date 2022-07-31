@@ -20,7 +20,7 @@ namespace Meth
                 }
                 var result = resultStream.ToArray();                
                 return result;
-            }
+            }//don't need to flush mem stream since this is in a using block -- falls out of scope, auto garbage collected
         }
 
     }
