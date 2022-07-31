@@ -179,7 +179,26 @@ namespace Meth
 
         private void AddDeletesToMessages(byte[] hash, List<string> deletes, List<Message<byte[], byte[]>> messages)
         {
+            foreach (var d in deletes)
+            {
+                var m = new Message<byte[], byte[]>();
+                byte[] post = Encoding.UTF8.GetBytes(d); //for end of byte array
+                byte[] tmp = AddPrefixByte(hash, 0x04);
 
+                var s = new MemoryStream();
+                s.Write(tmp, 0, tmp.Length);
+                s.Write(post, 0, post.Length);
+                var key = s.ToArray();
+                //no avro encoding needed for deletes messages
+                m.Key = key;
+                m.Value = new byte[] { 0x56, 0x78 };//example seems off? Hardcoding for now Where does this come from... follow up with Austin 
+                //temporary would expect b/c not to have q/18 value?
+
+                messages.Add(m);
+
+                Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+
+            }
         }
 
         //get
