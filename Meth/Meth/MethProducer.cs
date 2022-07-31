@@ -108,7 +108,7 @@ namespace Meth
 
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
-            var msg0 = new Message<byte[], string>();
+            var msg0 = new Message<byte[], byte[]>();
             msg0.Key = AddPrefixByte(hash, 0x00);
             Console.WriteLine(" Message 0 Key is " + PrettyPrintByteArray(msg0.Key));
 
@@ -125,10 +125,11 @@ namespace Meth
             //string aandb = "a/b";
             //byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
             //Console.WriteLine(Convert.ToHexString(aandbBA));
-
+            byte[] encoded = AvroEncoder.Serialize(nonEncoded);
+            Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
 
             //avro encoding step needed
-            msg0.Value = nonEncoded;
+            msg0.Value = encoded;
 
 
 
