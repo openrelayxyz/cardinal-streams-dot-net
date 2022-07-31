@@ -97,7 +97,7 @@ namespace Meth
         /// <param name="hash"> Example : 0xdeadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff hexidecimal hash?</param>
         /// <param name="parentHash"> Example: 0x0000000000000000000000000000000000000000000000000000000000000000 hexidecimal hash? </param>
         /// <param name="weight"> 0x2674</param>
-        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678 } </param>
+        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 } </param>
         /// <param name="deletes"> Examples :   ["b/c"] or ["b/c", "t/g"] </param>
         /// <param name="batches"> Example: Subbatches: {"b/s": 0x0000000000000000000000000000000000000000000000000000000000000001} Subbatch details: Updates: { "b/s/5": 0xabcd } Deletes: ["b/s/4"]</param>
         ///    batches param type might need tweeking since there are subbatches? 
@@ -105,10 +105,12 @@ namespace Meth
         public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
+            var messages = new List<Message<byte[], byte[]>>();
 
+            #region messageZero
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
-            var msg0 = new Message<byte[], string>();
+            var msg0 = new Message<byte[], byte[]>();
             msg0.Key = AddPrefixByte(hash, 0x00);
             Console.WriteLine(" Message 0 Key is " + PrettyPrintByteArray(msg0.Key));
 
@@ -116,39 +118,22 @@ namespace Meth
             string w = "\"weight\": " + PrettyPrintByteArray(weight) + ",\n  ";
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
-            string updatesstring = GetUpdatesCountStrings(updates);
+            string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
             string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
 
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
             Console.WriteLine("Unencoded message 0 looks like this : \n\n" + nonEncoded);
 
-            //string aandb = "a/b";
-            //byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
-            //Console.WriteLine(Convert.ToHexString(aandbBA));
+            byte[] encoded = AvroEncoder.Serialize(nonEncoded);
+            Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
+            msg0.Value = encoded;
+            messages.Add(msg0);
+            #endregion messageZero           
 
-
-            //avro encoding step needed
-            msg0.Value = nonEncoded;
-
-
-
-            //create messages
-            var outStream = new Avro.IO.ByteBufferOutputStream();
-            var encoder = new Avro.IO.BinaryEncoder(outStream);
-            //avro encode
-
-            //encoder.WriteString(nonEncoded); //need to come back to this, not sure how to get encoded value back out
-            //Console.WriteLine("Encoded msg 0  " + nonEncoded);
-
-            //send msg0 
-
-            //prep and send messages associated with msg0
-
-            var messages = new List<Message<byte[], byte[]>>();
             AddUpdatesToMessages(hash, updates, messages);
 
-
-            //For each match create message, encode, and send (Avro Encoded)
+            AddDeletesToMessages(hash, deletes, messages);
+            //For each message in messages send -- track any failures -- only log failures
 
             var message = new Message<string, string>(); //is this supposed to be the schema map?
                                                          //pretty sure this is what kafka sends, need to nail down what structure this is
@@ -185,17 +170,41 @@ namespace Meth
                 var key = s.ToArray();
 
                 m.Key = key;
-                m.Value = u.Value;
+                m.Value = u.Value; //Avro encoding not needed for updates messages
                 messages.Add(m);
 
                 Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
             }
         }
 
+        private void AddDeletesToMessages(byte[] hash, List<string> deletes, List<Message<byte[], byte[]>> messages)
+        {
+            foreach (var d in deletes)
+            {
+                var m = new Message<byte[], byte[]>();
+                byte[] post = Encoding.UTF8.GetBytes(d); //for end of byte array
+                byte[] tmp = AddPrefixByte(hash, 0x04);
+
+                var s = new MemoryStream();
+                s.Write(tmp, 0, tmp.Length);
+                s.Write(post, 0, post.Length);
+                var key = s.ToArray();
+                //no avro encoding needed for deletes messages
+                m.Key = key;
+                m.Value = new byte[] { 0x56, 0x78 };//example seems off? Hardcoding for now Where does this come from... follow up with Austin 
+                //temporary would expect b/c not to have q/18 value?
+
+                messages.Add(m);
+
+                Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+
+            }
+        }
+
         //get
 
         //gets the counts per update type 
-        // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678 }
+        // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 }
         // "a/": {"count": 1},
         // "b/": {"count": 1},
         // "q/": {"count": 2},
@@ -227,6 +236,7 @@ namespace Meth
             return result;
         }
 
+        //TODO Complete these 3
         public void ReOrg()
         {
             //notify that a bunch of blocks coming with the reorg
@@ -237,6 +247,11 @@ namespace Meth
         public void ReOrgDone()
         {
 
+        }
+
+        public void SendBatch()//TODO params
+        {
+            //TODO
         }
 
         public void Flush()
