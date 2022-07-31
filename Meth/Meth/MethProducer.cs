@@ -105,7 +105,9 @@ namespace Meth
         public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
+            var messages = new List<Message<byte[], byte[]>>();
 
+            #region messageZero
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
             var msg0 = new Message<byte[], byte[]>();
@@ -116,40 +118,22 @@ namespace Meth
             string w = "\"weight\": " + PrettyPrintByteArray(weight) + ",\n  ";
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
-            string updatesstring = GetUpdatesCountStrings(updates);
+            string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
             string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
 
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
             Console.WriteLine("Unencoded message 0 looks like this : \n\n" + nonEncoded);
 
-            //string aandb = "a/b";
-            //byte[] aandbBA = Encoding.UTF8.GetBytes(aandb);
-            //Console.WriteLine(Convert.ToHexString(aandbBA));
             byte[] encoded = AvroEncoder.Serialize(nonEncoded);
             Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
-
-            //avro encoding step needed
             msg0.Value = encoded;
+            messages.Add(msg0);
+            #endregion messageZero           
 
-
-
-            //create messages
-            var outStream = new Avro.IO.ByteBufferOutputStream();
-            var encoder = new Avro.IO.BinaryEncoder(outStream);
-            //avro encode
-
-            //encoder.WriteString(nonEncoded); //need to come back to this, not sure how to get encoded value back out
-            //Console.WriteLine("Encoded msg 0  " + nonEncoded);
-
-            //send msg0 
-
-            //prep and send messages associated with msg0
-
-            var messages = new List<Message<byte[], byte[]>>();
             AddUpdatesToMessages(hash, updates, messages);
 
 
-            //For each match create message, encode, and send (Avro Encoded)
+            //For each message in messages send -- track any failures -- only log failures
 
             var message = new Message<string, string>(); //is this supposed to be the schema map?
                                                          //pretty sure this is what kafka sends, need to nail down what structure this is
