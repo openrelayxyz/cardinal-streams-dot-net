@@ -1,6 +1,7 @@
 ﻿
-using Meth;  //only thing you need to pull in to use lib
-
+using Meth;  //only thing you need to pull in to use lib,
+             //or you could have the project itself be a dependancy in VS
+//show project output directory
 Console.WriteLine("Hello, World!");
 
 
@@ -10,11 +11,14 @@ Dictionary<string, string> test = new Dictionary<string, string>(); //schema map
 
 //second pass
 Console.WriteLine("Creating Improved producer");
+
+
 //!!!
 //not sure if a/b/q/ goes in topic or schema map
 //!!!
-
 var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "a/b/q/", test); // "WrappedLib");
+
+//improved.AddBroker("AdditionalServerURL");
 
 //var improved = new Meth.WrappedMethProducer("z-2.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:2181", "interestingTopic", test); // "WrappedLib");
 //was testing with Roy we never could get my computer connected to AWS resource
