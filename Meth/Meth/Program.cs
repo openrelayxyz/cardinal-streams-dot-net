@@ -14,7 +14,7 @@ Console.WriteLine("Creating Improved producer");
 
 
 //!!!
-//not sure if a/b/q/ goes in topic or schema map
+//not sure if a/b/q/ goes in topic or schema map <- a/b/q/ from sample documentation
 //!!!
 var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "a/b/q/", test); // "WrappedLib");
 
@@ -67,7 +67,7 @@ return;//end program, don't run first draft code below
 /// <summary>
 /// Code below is not used anymore, just there for reference, but getting to where it has no use so will remove it soon. 
 /// </summary>
-
+#region unused
 //first pass/ first draft below --this code wont run currently --- we return before this code is hit, no need to review unless you are curious about a nonwrapped kafka lib
 //right now an empty dictionary
 Console.WriteLine("Creating Walter White");
@@ -92,3 +92,4 @@ Console.WriteLine("Flush complete");
 
 Console.WriteLine("Press any key to close");
 Console.ReadKey();
+#endregion unused
