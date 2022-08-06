@@ -73,7 +73,7 @@ namespace Meth
         /// <param name="hash"> Example : 0xdeadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff hexidecimal hash?</param>
         /// <param name="parentHash"> Example: 0x0000000000000000000000000000000000000000000000000000000000000000 hexidecimal hash? </param>
         /// <param name="weight"> 0x2674</param>
-        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 } </param>
+        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 } </param> //x/19 in updates, but not mapped
         /// <param name="deletes"> Examples :   ["b/c"] or ["b/c", "t/g"] </param>
         /// <param name="batches"> Example: Subbatches: {"b/s": 0x0000000000000000000000000000000000000000000000000000000000000001} Subbatch details: Updates: { "b/s/5": 0xabcd } Deletes: ["b/s/4"]</param>
         ///    batches param type might need tweeking since there are subbatches? 
@@ -82,7 +82,8 @@ namespace Meth
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
             var messages = new List<Message<byte[], byte[]>>();
-
+            Console.WriteLine("");
+            Console.WriteLine("");
             #region messageZero
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
@@ -113,7 +114,8 @@ namespace Meth
             AddDeletesToMessages(hash, deletes, messages);
             //For each message in messages send -- track any failures -- only log failures
             //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
-
+            Console.WriteLine("");
+            Console.WriteLine("");
             //test message that we never got to send
             var message = new Message<string, string>(); //is this supposed to be the schema map?
                                                          //pretty sure this is what kafka sends, need to nail down what structure this is

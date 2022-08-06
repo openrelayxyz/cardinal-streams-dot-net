@@ -7,16 +7,18 @@ Console.WriteLine("Hello, World!");
 
 int hashId = 12345; //remove
 Dictionary<string, string> test = new Dictionary<string, string>(); //schema map param
-
+//"a/b/q/" -- inside schema map "a/TopicA" 
+//key is a/
+//Value is TopicA
 
 //second pass
 Console.WriteLine("Creating Improved producer");
 
 
 //!!!
-//not sure if a/b/q/ goes in topic or schema map <- a/b/q/ from sample documentation
+//not sure if a/b/q/ goes in topic or schema map <- a/b/q/ from sample documentation -- default topic different syntax 
 //!!!
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "a/b/q/", test); // "WrappedLib");
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , test); // "WrappedLib");
 
 //improved.AddBroker("AdditionalServerURL");
 
