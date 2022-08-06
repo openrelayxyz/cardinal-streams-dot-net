@@ -10,7 +10,7 @@ using Avro;
 
 namespace Meth
 {
-    /// Not started yet
+    /// Not started yet -- left for milestone 1
     /// SendBatch(batchid types.Hash, delete []string, update map[string][] byte) (map[string][] Message, error)
     /// Reorg(number int64, hash types.Hash)
     /// ReorgDone(number int64, hash types.Hash)
@@ -112,7 +112,7 @@ namespace Meth
 
             AddDeletesToMessages(hash, deletes, messages);
             //For each message in messages send -- track any failures -- only log failures
-            //for message in messages  -- send 
+            //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
 
             //test message that we never got to send
             var message = new Message<string, string>(); //is this supposed to be the schema map?
@@ -120,8 +120,8 @@ namespace Meth
                                                          //has to be created by params somehow, a real example would likely be helpful 
             
             
-            message.Key = "Key-7-20---Roy";
-            message.Value = "Test7-20---Roy";
+            message.Key = "Key-8-6---Roy";
+            message.Value = "TestValue-8-6---Roy";
             //change to Produce Async, capture errors and log them --- 
 
             //have this be a new Task on it's own thread-- that way things dont get blocked
