@@ -269,7 +269,7 @@ namespace Meth
             //TODO
         }
 
-        public async Task SendBatch()//TODO params -- once params done rest should be easy
+        public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             //TODO
         }

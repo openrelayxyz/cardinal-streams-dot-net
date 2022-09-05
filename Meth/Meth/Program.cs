@@ -42,15 +42,20 @@ byte[] weight = new byte[] { 0x26, 0x74 };
 //there is probably a better way to deal with byte[] in C#, dont often use byte array as a data type
 Dictionary<string, byte[]> updates = new Dictionary<string, byte[]>(){
     { "a/b", new byte[] {0x88} },
-    {"q/17", new byte[] {0x12, 0x34} },
+    { "q/17", new byte[] {0x12, 0x34} },
     { "q/18", new byte[] {0x56, 0x78 } },
     { "x/19", new byte[] { 0x99, 0x99 } }
 };
 
 var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c", "t/g"]
 
+//there is a better way to do the batches data type, I need to figure it out
+//this data type needs to be improved, need to discuss with Austin 
 Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
-    {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")}
+    {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")},
+    {"b/s/5", Convert.FromHexString("abcd")},
+    {"b/s/4", Convert.FromHexString("deletes") }//this is wrong, just doing to get started
+
 };// ... need to figure out batches datatype, since it has subbatches
 //batches included in message 0 "b/s": {"subbatch": 0x0000000000000000000000000000000000000000000000000000000000000001} in addblock
 //batches and subbatch details not sent up until SendBatches called messages 5,6,7.... i think 
@@ -58,7 +63,7 @@ Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
 
 //call add block with the variables from the example documentation -- messages 0 through 4
 await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );
-await improved.SendBatch();
+await improved.SendBatch(1, easyHash, updates, deletes, batches);
 
 
 Thread.Sleep(10000);
