@@ -96,6 +96,12 @@ namespace Meth
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
             string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
+            //add subbatch to updates string
+            string subbatch = GetSubBatchString(batches);
+            updatesstring = updatesstring + subbatch;
+            //add values of updates that are not in schema map to updates string
+            string nonSchemaUpdates = GetNonSchemaUpdates(updates);  //x/19 from example
+            updatesstring = updatesstring + nonSchemaUpdates; //these are entries in updates not specified in schema map that spec says go into message 0
             string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
 
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
@@ -144,6 +150,19 @@ namespace Meth
         {
             foreach (var u in updates)
             {
+                bool foundKey = false;
+                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
+                foreach(var letter in u.Key)
+                {
+                    if(SchemaMap.ContainsKey(letter.ToString()))
+                    {
+                        foundKey = true;
+                    }
+                }
+                if(!foundKey)
+                {
+                    continue; //skip sending message if not in schemaMap, go on to next entry in updates
+                }
                 var m = new Message<byte[], byte[]>();
                 byte[] post = Encoding.UTF8.GetBytes(u.Key); //for end of byte array
                 byte[] tmp = AddPrefixByte(hash, 0x03);
@@ -175,17 +194,55 @@ namespace Meth
                 var key = s.ToArray();
                 //no avro encoding needed for deletes messages
                 m.Key = key;
-                m.Value = new byte[] { 0x56, 0x78 };//example seems off? Hardcoding for now Where does this come from... follow up with Austin 
-                //temporary would expect b/c not to have q/18 value?
-
+                //m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
                 messages.Add(m);
 
-                Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+                Console.WriteLine("Deletes message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + m.Value);
 
             }
         }
 
-        
+
+        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
+        {
+            string result = "";
+            foreach (var u in updates)
+            {
+                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
+                foreach (var letter in u.Key)
+                {
+                    if (!SchemaMap.ContainsKey(letter.ToString()))
+                    {
+                        if (!letter.Equals("/") && char.IsLetter(letter)) //this is a letter and not a number or a slash
+                        {
+                            Console.WriteLine(" Update Key " + u.Key.ToString() + " not found in SchemaMap");
+                            Console.WriteLine(" Adding key and value to updates string");
+                            if (result.Equals(string.Empty))
+                            {
+                                result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                            }
+                            else
+                            {
+                                //if there are more than one we need a comma on new lines... TODO
+                                result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                            }
+                        }
+                    }
+                }
+            }
+            result = result + "\n"; //add newline to last entry without comma
+            return result;
+        }
+
+        private string GetSubBatchString(Dictionary<string, byte[]> batches) //will need to update this data type
+        {
+            string result = "";
+            //TODO update datatype, and function
+            //batches datatype will change, but for now, just use first key in dictionary
+            var first = batches.First();
+            result = "\"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
+            return result;
+        }
 
         //gets the counts per update type 
         // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 }
@@ -194,28 +251,26 @@ namespace Meth
         // "q/": {"count": 2},
         private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
         {
-            int aCount =0;
-            int bCount =0;
-            int qCount =0;
             string result = "";
-            foreach( var entry in updates)
+            foreach (var key in SchemaMap.Keys)
             {
-                if (entry.Key.Contains("a"))
+                int currentKeyCount = 0;
+                foreach (var entry in updates)
                 {
-                    aCount++;
+                    if(entry.Key.Contains(key.First()))
+                    {
+                        currentKeyCount++;
+                    }
                 }
-                if (entry.Key.Contains("b"))
+                if (currentKeyCount != 0) 
                 {
-                    bCount++;
+                    string toAdd = "\"" + key.ToString() + "/\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
-                if (entry.Key.Contains("q"))
-                {
-                    qCount++;
-                }
-            }
-            if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
-            if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
-            if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
+            }            
+            //old hardcoded way for reference -- this worked, but did not handle every letter
+            //if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
+            //if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
+            //if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
 
             return result;
         }
@@ -233,7 +288,7 @@ namespace Meth
             //TODO
         }
 
-        public void SendBatch()//TODO params -- once params done rest should be easy
+        public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             //TODO
         }
