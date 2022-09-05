@@ -96,6 +96,11 @@ namespace Meth
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
             string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
+            //add subbatch to updates string
+
+            //add values of updates that are not in schema map to updates string
+            string nonSchemaUpdates = GetNonSchemaUpdates(updates);  //x/19 from example
+            updatesstring = updatesstring + nonSchemaUpdates; //these are entries in updates not specified in schema map that spec says go into message 0
             string up = "\"updates\": {\n" + updatesstring + " }\n}\n";
 
             string nonEncoded = "Batch:\n{\n  " + num + w + p + up;
@@ -196,7 +201,29 @@ namespace Meth
             }
         }
 
-        
+
+        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
+        {
+            string result = "";
+            foreach (var u in updates)
+            {
+                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
+                foreach (var letter in u.Key)
+                {
+                    if (!SchemaMap.ContainsKey(letter.ToString()))
+                    {
+                        if (!letter.Equals("/") && char.IsLetter(letter)) //this is a letter and not a number or a slash
+                        {
+                            Console.WriteLine(" Update Key " + u.Key.ToString() + " not found in SchemaMap");
+                            Console.WriteLine(" Adding key and value to updates string");
+                            result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) +"}\n";
+                        }
+                    }
+                }
+
+            }
+            return result;
+        }
 
         //gets the counts per update type 
         // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 }
@@ -218,7 +245,7 @@ namespace Meth
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = key.ToString() + "\": { \"count\": " + currentKeyCount + "},}\n"; result = result + toAdd; 
+                    string toAdd = "\"" + key.ToString() + "/\": { \"count\": " + currentKeyCount + "},}\n"; result = result + toAdd; 
                 }
             }            
             //old hardcoded way for reference -- this worked, but did not handle every letter
