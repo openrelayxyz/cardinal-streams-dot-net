@@ -54,7 +54,7 @@ var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c
 Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
     {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")},
     {"b/s/5", Convert.FromHexString("abcd")},
-    {"b/s/4", Convert.FromHexString("deletes") }//this is wrong, just doing to get started
+    {"b/s/4", Convert.FromHexString("de") }//this is wrong, just doing to get started -- need to update this datatype
 
 };// ... need to figure out batches datatype, since it has subbatches
 //batches included in message 0 "b/s": {"subbatch": 0x0000000000000000000000000000000000000000000000000000000000000001} in addblock

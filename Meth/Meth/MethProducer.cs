@@ -97,7 +97,8 @@ namespace Meth
 
             string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
             //add subbatch to updates string
-
+            string subbatch = GetSubBatchString(batches);
+            updatesstring = updatesstring + subbatch;
             //add values of updates that are not in schema map to updates string
             string nonSchemaUpdates = GetNonSchemaUpdates(updates);  //x/19 from example
             updatesstring = updatesstring + nonSchemaUpdates; //these are entries in updates not specified in schema map that spec says go into message 0
@@ -216,12 +217,30 @@ namespace Meth
                         {
                             Console.WriteLine(" Update Key " + u.Key.ToString() + " not found in SchemaMap");
                             Console.WriteLine(" Adding key and value to updates string");
-                            result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) +"}\n";
+                            if (result.Equals(string.Empty))
+                            {
+                                result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                            }
+                            else
+                            {
+                                //if there are more than one we need a comma on new lines... TODO
+                                result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                            }
                         }
                     }
                 }
-
             }
+            result = result + "\n"; //add newline to last entry without comma
+            return result;
+        }
+
+        private string GetSubBatchString(Dictionary<string, byte[]> batches) //will need to update this data type
+        {
+            string result = "";
+            //TODO update datatype, and function
+            //batches datatype will change, but for now, just use first key in dictionary
+            var first = batches.First();
+            result = "\"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
             return result;
         }
 
@@ -245,7 +264,7 @@ namespace Meth
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = "\"" + key.ToString() + "/\": { \"count\": " + currentKeyCount + "},}\n"; result = result + toAdd; 
+                    string toAdd = "\"" + key.ToString() + "/\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
             }            
             //old hardcoded way for reference -- this worked, but did not handle every letter
