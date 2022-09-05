@@ -1,21 +1,33 @@
-﻿// See https://aka.ms/new-console-template for more information
-using Meth;  
-
+﻿
+using Meth;  //only thing you need to pull in to use lib,
+             //or you could have the project itself be a dependancy in VS
+//show project output directory
 Console.WriteLine("Hello, World!");
 
 
-int hashId = 12345;
-Dictionary<string, string> test = new Dictionary<string, string>();
-
+int hashId = 12345; //remove
+Dictionary<string, string> test = new Dictionary<string, string>(); //schema map param
+//"a/b/q/" -- inside schema map "a/TopicA" 
+//key is a/
+//Value is TopicA
 
 //second pass
 Console.WriteLine("Creating Improved producer");
-//not sure if a/b/q/ goes in topic or schema map
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "a/b/q/", test); // "WrappedLib");
+
+
+//!!!
+//not sure if a/b/q/ goes in topic or schema map <- a/b/q/ from sample documentation -- default topic different syntax 
+//!!!
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , test); // "WrappedLib");
+
+//improved.AddBroker("AdditionalServerURL");
 
 //var improved = new Meth.WrappedMethProducer("z-2.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:2181", "interestingTopic", test); // "WrappedLib");
+//was testing with Roy we never could get my computer connected to AWS resource
 
+//examples of creating params for addblock in a C# program
 
+//how to create these params in a C# program -- there are multiple ways
 string hashString = "deadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff";
 byte[] easyHash = Convert.FromHexString(hashString);
 
@@ -33,15 +45,16 @@ Dictionary<string, byte[]> updates = new Dictionary<string, byte[]>(){
 };
 
 var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c", "t/g"]
+
 Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
     {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")}
 };// ... need to figure out batches datatype, since it has subbatches
 //batches included in message 0 "b/s": {"subbatch": 0x0000000000000000000000000000000000000000000000000000000000000001} in addblock
-//batches and subbatch details not sent up until SendBatches called messages 5,6,7
+//batches and subbatch details not sent up until SendBatches called messages 5,6,7.... i think 
 
 
-//call add block with the variables from the example documentation
-await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );//currently params undefined
+//call add block with the variables from the example documentation -- messages 0 through 4
+await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );
 
 
 Thread.Sleep(10000);
@@ -51,9 +64,13 @@ Console.WriteLine("Flush complete");
 
 Console.WriteLine("Press any key to close");
 Console.ReadKey();
-return;//end program, don't run first pass code
+return;//end program, don't run first draft code below
 
-//first pass below --this code wont run currently
+/// <summary>
+/// Code below is not used anymore, just there for reference, but getting to where it has no use so will remove it soon. 
+/// </summary>
+#region unused
+//first pass/ first draft below --this code wont run currently --- we return before this code is hit, no need to review unless you are curious about a nonwrapped kafka lib
 //right now an empty dictionary
 Console.WriteLine("Creating Walter White");
 var WalterWhite = Meth.MethProducer.NewProducer("URL", "none", test, "WalterWhite");
@@ -77,3 +94,4 @@ Console.WriteLine("Flush complete");
 
 Console.WriteLine("Press any key to close");
 Console.ReadKey();
+#endregion unused

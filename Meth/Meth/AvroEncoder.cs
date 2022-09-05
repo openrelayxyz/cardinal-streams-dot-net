@@ -18,10 +18,23 @@ namespace Meth
                 {
                     writer.WriteString(obj.ToString());
                 }
-                var result = resultStream.ToArray();                
+                var result = resultStream.ToArray();
                 return result;
             }//don't need to flush mem stream since this is in a using block -- falls out of scope, auto garbage collected
         }
 
+        //for batches message 5
+        public static byte[] SerializeInt(int i)
+        {
+            using (MemoryStream resultStream = new MemoryStream())
+            {
+                var writer = new Avro.IO.BinaryEncoder(resultStream);
+                {
+                    writer.WriteInt(i);
+                }
+                var result = resultStream.ToArray();
+                return result;
+            }
+        }
     }
 }

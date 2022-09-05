@@ -10,26 +10,8 @@ using Avro;
 
 namespace Meth
 {
-
-    //NewProducer(kafkaBrokerURL, defaultTopic string, schema map[string] string) 
-    // changing to dictionary data type, key value pairs
-
-    //AddBlock(number int64, hash, parentHash types.Hash, weight *big.Int, 
-    // updates map[string][] byte, deletes map[string]struct{ }, batches map
-    //[string]types.Hash)
-
-    /*
-    BlockHash: A 32 byte identifier unique to this message payload. --unique
-    Number: A 64 bit unsigned integer indicating the sequence number of this payload.
-    Parent: The $BlockHash of the block preceding this one.
-    Weight: A 256 bit unsigned indicator indicating the weight of this payload. If this is not meaningful for a given application, it can duplicate $Number.
-     */
-
-
-    /// Not started yet
+    /// Not started yet -- left for milestone 1
     /// SendBatch(batchid types.Hash, delete []string, update map[string][] byte) (map[string][] Message, error)
-    /// 
-    ///
     /// Reorg(number int64, hash types.Hash)
     /// ReorgDone(number int64, hash types.Hash)
 
@@ -39,18 +21,7 @@ namespace Meth
         private string Topic;
         private string ReOrgTopic;
         private Dictionary<string, string> SchemaMap;
-        private string brokerURL; //expose to constructor
-
-        //private Dictionary<int, batchInfo>  pendingBatches;   //Map batchid -> batchInfo -- not sure what type batchInfo is
-        //
-
-
-        //from go impl
-        //type batchInfo struct
-        //{
-        // topic string
-        //  block types.Hash   -- types.Hash equivalent in C#? 32 byte array
-        //}               
+        private string brokerURL;            
 
         //Encapsolates a kafka producer, C# kafka lib has no way to store default topic in the producer... 
         public WrappedMethProducer(string kafkaBrokerURL, string topic, Dictionary<string, string> schemaMap, string specialname = null)
@@ -71,9 +42,14 @@ namespace Meth
             brokerURL = kafkaBrokerURL;
         }
 
-        public void AddBroker(string newServer)
+        /// <summary>
+        /// Returns the number of brokers added, even if they have been added for a second time
+        /// </summary>
+        /// <param name="newServer"> URL of the broker to be added </param>
+        /// <returns></returns>
+        public int AddBroker(string newServer)
         {
-            _Producer.AddBrokers(newServer);
+            return _Producer.AddBrokers(newServer);
         }
 
 
@@ -97,7 +73,7 @@ namespace Meth
         /// <param name="hash"> Example : 0xdeadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff hexidecimal hash?</param>
         /// <param name="parentHash"> Example: 0x0000000000000000000000000000000000000000000000000000000000000000 hexidecimal hash? </param>
         /// <param name="weight"> 0x2674</param>
-        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 } </param>
+        /// <param name="updates"> Example :  { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 } </param> //x/19 in updates, but not mapped
         /// <param name="deletes"> Examples :   ["b/c"] or ["b/c", "t/g"] </param>
         /// <param name="batches"> Example: Subbatches: {"b/s": 0x0000000000000000000000000000000000000000000000000000000000000001} Subbatch details: Updates: { "b/s/5": 0xabcd } Deletes: ["b/s/4"]</param>
         ///    batches param type might need tweeking since there are subbatches? 
@@ -106,7 +82,8 @@ namespace Meth
         {
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
             var messages = new List<Message<byte[], byte[]>>();
-
+            Console.WriteLine("");
+            Console.WriteLine("");
             #region messageZero
             //message 0 key is prefix 00 with hashbyte array as key 
             //todo make this a method -- go from procedural to object
@@ -127,19 +104,26 @@ namespace Meth
             byte[] encoded = AvroEncoder.Serialize(nonEncoded);
             Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
             msg0.Value = encoded;
+            //instead of adding it to list here, send it now, to make sure message 0 arrives first
             messages.Add(msg0);
+            //instead of adding it to list here, send it not, to make sure message 0 arrives first
             #endregion messageZero           
 
             AddUpdatesToMessages(hash, updates, messages);
 
             AddDeletesToMessages(hash, deletes, messages);
             //For each message in messages send -- track any failures -- only log failures
-
+            //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
+            Console.WriteLine("");
+            Console.WriteLine("");
+            //test message that we never got to send
             var message = new Message<string, string>(); //is this supposed to be the schema map?
                                                          //pretty sure this is what kafka sends, need to nail down what structure this is
                                                          //has to be created by params somehow, a real example would likely be helpful 
-            message.Key = "Key-7-20---Roy";
-            message.Value = "Test7-20---Roy";
+            
+            
+            message.Key = "Key-8-6---Roy";
+            message.Value = "TestValue-8-6---Roy";
             //change to Produce Async, capture errors and log them --- 
 
             //have this be a new Task on it's own thread-- that way things dont get blocked
@@ -201,7 +185,7 @@ namespace Meth
             }
         }
 
-        //get
+        
 
         //gets the counts per update type 
         // Updates: { "a/b": 0x88, "q/17": 0x1234, "q/18": 0x5678, "x/19": 0x9999 }
@@ -237,7 +221,7 @@ namespace Meth
         }
 
         //TODO Complete these 3
-        public void ReOrg()
+        public void ReOrg()//list of blocks? 
         {
             //notify that a bunch of blocks coming with the reorg
             //addblock for all new blocks
@@ -246,10 +230,10 @@ namespace Meth
 
         public void ReOrgDone()
         {
-
+            //TODO
         }
 
-        public void SendBatch()//TODO params
+        public void SendBatch()//TODO params -- once params done rest should be easy
         {
             //TODO
         }
