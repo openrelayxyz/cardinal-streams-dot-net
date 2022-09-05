@@ -193,7 +193,7 @@ namespace Meth
                 var key = s.ToArray();
                 //no avro encoding needed for deletes messages
                 m.Key = key;
-                m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
+                //m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
                 messages.Add(m);
 
                 Console.WriteLine("Deletes message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + m.Value);
