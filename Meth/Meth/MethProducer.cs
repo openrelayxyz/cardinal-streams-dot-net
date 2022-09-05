@@ -144,6 +144,19 @@ namespace Meth
         {
             foreach (var u in updates)
             {
+                bool foundKey = false;
+                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
+                foreach(var letter in u.Key)
+                {
+                    if(SchemaMap.ContainsKey(letter.ToString()))
+                    {
+                        foundKey = true;
+                    }
+                }
+                if(!foundKey)
+                {
+                    continue; //skip sending message if not in schemaMap, go on to next entry in updates
+                }
                 var m = new Message<byte[], byte[]>();
                 byte[] post = Encoding.UTF8.GetBytes(u.Key); //for end of byte array
                 byte[] tmp = AddPrefixByte(hash, 0x03);
@@ -175,12 +188,10 @@ namespace Meth
                 var key = s.ToArray();
                 //no avro encoding needed for deletes messages
                 m.Key = key;
-                m.Value = new byte[] { 0x56, 0x78 };//example seems off? Hardcoding for now Where does this come from... follow up with Austin 
-                //temporary would expect b/c not to have q/18 value?
-
+                m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
                 messages.Add(m);
 
-                Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+                Console.WriteLine("Deletes message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + m.Value);
 
             }
         }
@@ -194,28 +205,26 @@ namespace Meth
         // "q/": {"count": 2},
         private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
         {
-            int aCount =0;
-            int bCount =0;
-            int qCount =0;
             string result = "";
-            foreach( var entry in updates)
+            foreach (var key in SchemaMap.Keys)
             {
-                if (entry.Key.Contains("a"))
+                int currentKeyCount = 0;
+                foreach (var entry in updates)
                 {
-                    aCount++;
+                    if(entry.Key.Contains(key.First()))
+                    {
+                        currentKeyCount++;
+                    }
                 }
-                if (entry.Key.Contains("b"))
+                if (currentKeyCount != 0) 
                 {
-                    bCount++;
+                    string toAdd = key.ToString() + "\": { \"count\": " + currentKeyCount + "},}\n"; result = result + toAdd; 
                 }
-                if (entry.Key.Contains("q"))
-                {
-                    qCount++;
-                }
-            }
-            if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
-            if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
-            if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
+            }            
+            //old hardcoded way for reference -- this worked, but did not handle every letter
+            //if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
+            //if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
+            //if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
 
             return result;
         }
@@ -233,7 +242,7 @@ namespace Meth
             //TODO
         }
 
-        public void SendBatch()//TODO params -- once params done rest should be easy
+        public async Task SendBatch()//TODO params -- once params done rest should be easy
         {
             //TODO
         }

@@ -7,6 +7,9 @@ Console.WriteLine("Hello, World!");
 
 int hashId = 12345; //remove
 Dictionary<string, string> test = new Dictionary<string, string>(); //schema map param
+test.Add(@"a", "TopicA");
+test.Add(@"b", "TopicB"); //i don't know if the / postfix after the key is technically necessary for C#,
+test.Add(@"q", "TopicQ"); // for now removing the / postfix
 //"a/b/q/" -- inside schema map "a/TopicA" 
 //key is a/
 //Value is TopicA
@@ -55,6 +58,7 @@ Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
 
 //call add block with the variables from the example documentation -- messages 0 through 4
 await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );
+await improved.SendBatch();
 
 
 Thread.Sleep(10000);
