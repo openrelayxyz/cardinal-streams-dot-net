@@ -60,6 +60,24 @@ Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
 //batches included in message 0 "b/s": {"subbatch": 0x0000000000000000000000000000000000000000000000000000000000000001} in addblock
 //batches and subbatch details not sent up until SendBatches called messages 5,6,7.... i think 
 
+//new way
+Dictionary<string, byte[]> subBatches = new Dictionary<string, byte[]>() {
+    {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")}
+};
+int blockId = 1;
+int itemCount = 2;
+Dictionary<string, byte[]> batchUpdates = new Dictionary<string, byte[]>() {
+    {"b/s/5", Convert.FromHexString("abcd")}
+};
+
+List<string> batchDeletes = new List<string>() { "b/s/4" };
+
+
+//new way
+Batch B = new Batch(easyHash, blockId, itemCount, subBatches, batchUpdates, batchDeletes);
+//new way
+await improved.SendBatch(B); 
+
 
 //call add block with the variables from the example documentation -- messages 0 through 4
 await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );

@@ -288,6 +288,10 @@ namespace Meth
             //TODO
         }
 
+        public async Task SendBatch(Batch batch)
+        {
+            //TODO
+        }
         public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
             //TODO
