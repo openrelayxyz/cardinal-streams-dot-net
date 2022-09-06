@@ -276,7 +276,9 @@ namespace Meth
         }
 
         //TODO Complete these 3
-        public void ReOrg()//list of blocks? 
+        public void ReOrg()//list of blocks? == a number and hash of block you are reorging to,
+            //blocks will be sent via add block
+            //once all blocks sent, call reorg done. 
         {
             //notify that a bunch of blocks coming with the reorg
             //addblock for all new blocks

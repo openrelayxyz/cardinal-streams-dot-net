@@ -7,9 +7,9 @@ Console.WriteLine("Hello, World!");
 
 int hashId = 12345; //remove
 Dictionary<string, string> test = new Dictionary<string, string>(); //schema map param
-test.Add(@"a", "TopicA");
-test.Add(@"b", "TopicB"); //i don't know if the / postfix after the key is technically necessary for C#,
-test.Add(@"q", "TopicQ"); // for now removing the / postfix
+test.Add(@"a/", "TopicA");
+test.Add(@"b/", "TopicB"); //i don't know if the / postfix after the key is technically necessary for C#,
+test.Add(@"q/", "TopicQ"); // for now removing the / postfix
 //"a/b/q/" -- inside schema map "a/TopicA" 
 //key is a/
 //Value is TopicA
@@ -18,9 +18,9 @@ test.Add(@"q", "TopicQ"); // for now removing the / postfix
 
 
 
-//are multiletter topics possible?
+//are multiletter topics possible? yes
 // "dog/15" 
-// can topics start with number? 
+// can topics start with number? yes
 // "7/b"
 // "is slash necessary for single letter topics? -- I added the slash back into the messages when sent"
 // "but for simplicity I created them like above, can switch back if needed.
@@ -76,7 +76,7 @@ Dictionary<string, byte[]> subBatches = new Dictionary<string, byte[]>() {
     {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")}
 };
 int blockId = 1;
-int itemCount = 2;
+int itemCount = 2;//count does not include subbatch/header
 Dictionary<string, byte[]> batchUpdates = new Dictionary<string, byte[]>() {
     {"b/s/5", Convert.FromHexString("abcd")}
 };
