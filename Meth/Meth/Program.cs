@@ -14,6 +14,17 @@ test.Add(@"q", "TopicQ"); // for now removing the / postfix
 //key is a/
 //Value is TopicA
 
+
+
+
+
+//are multiletter topics possible?
+// "dog/15" 
+// can topics start with number? 
+// "7/b"
+// "is slash necessary for single letter topics? -- I added the slash back into the messages when sent"
+// "but for simplicity I created them like above, can switch back if needed.
+
 //second pass
 Console.WriteLine("Creating Improved producer");
 
