@@ -26,6 +26,7 @@ namespace Meth
             Deletes = new List<string>();   
         }
 
+        //full constructor requires all values
         public Batch(byte[] blockHash, int batchId, int itemCount, Dictionary<string, byte[]> subbatches, Dictionary<string, byte[]> updates, List<string> deletes)
         {
             SubBatches = subbatches;
@@ -36,5 +37,5 @@ namespace Meth
             ItemCount = itemCount;
         }
 
-    }
+    }   //Batch could have methods later if needed, conversion methods from 1 datatype to another 
 }

@@ -80,7 +80,7 @@ await improved.SendBatch(B);
 
 
 //call add block with the variables from the example documentation -- messages 0 through 4
-await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches );
+await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches ); //change batches param to list of new Batch data type
 await improved.SendBatch(1, easyHash, updates, deletes, batches);
 
 
