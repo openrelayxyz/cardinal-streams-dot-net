@@ -8,6 +8,7 @@ namespace Meth
 {
     internal class Batch
     {
+        //right now this only carries 1, but could potentially have multiple
         public Dictionary<string, byte[]> SubBatches;  //{"b/s": 0x0000000000000000000000000000000000000000000000000000000000000001}
 
         public Dictionary<string, byte[]> Updates;

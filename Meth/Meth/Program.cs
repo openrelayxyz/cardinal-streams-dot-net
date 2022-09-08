@@ -1,38 +1,22 @@
 ﻿
 using Meth;  //only thing you need to pull in to use lib,
              //or you could have the project itself be a dependancy in VS
-//show project output directory
+
+
 Console.WriteLine("Hello, World!");
 
-
-int hashId = 12345; //remove
-Dictionary<string, string> test = new Dictionary<string, string>(); //schema map param
-test.Add(@"a/", "TopicA");
-test.Add(@"b/", "TopicB"); //i don't know if the / postfix after the key is technically necessary for C#,
-test.Add(@"q/", "TopicQ"); // for now removing the / postfix
+Dictionary<string, string> schemaMap = new Dictionary<string, string>(); //schema map param
+schemaMap.Add(@"a/", "TopicA");
+schemaMap.Add(@"b/", "TopicB"); //topics will be regex... lets get some examples of that soon in the code
+schemaMap.Add(@"q/", "TopicQ"); 
 //"a/b/q/" -- inside schema map "a/TopicA" 
 //key is a/
 //Value is TopicA
 
-
-
-
-
-//are multiletter topics possible? yes
-// "dog/15" 
-// can topics start with number? yes
-// "7/b"
-// "is slash necessary for single letter topics? -- I added the slash back into the messages when sent"
-// "but for simplicity I created them like above, can switch back if needed.
-
 //second pass
 Console.WriteLine("Creating Improved producer");
 
-
-//!!!
-//not sure if a/b/q/ goes in topic or schema map <- a/b/q/ from sample documentation -- default topic different syntax 
-//!!!
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , test); // "WrappedLib");
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , schemaMap); // "WrappedLib");
 
 //improved.AddBroker("AdditionalServerURL");
 
@@ -44,6 +28,8 @@ var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-e
 //how to create these params in a C# program -- there are multiple ways
 string hashString = "deadbeef0123456789abcdef00000000000000fedcba987654321fffffffffff";
 byte[] easyHash = Convert.FromHexString(hashString);
+//this is the easy way, but the hashstring does not need prefix of 0x which might be confusing to people that 
+//use byte arrays frequently
 
 byte[] hash = new byte[] { 0xde, 0xad, 0xbe, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff };
 byte[] parent = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -62,6 +48,7 @@ var deletes = new List<string>() { "b/c" }; //["b/c"] for single, multiple ["b/c
 
 //there is a better way to do the batches data type, I need to figure it out
 //this data type needs to be improved, need to discuss with Austin 
+/// ***old way, see new way below, easier but split up.***
 Dictionary<string, byte[]> batches = new Dictionary<string, byte[]>() {
     {"b/s", Convert.FromHexString("0000000000000000000000000000000000000000000000000000000000000001")},
     {"b/s/5", Convert.FromHexString("abcd")},
@@ -83,16 +70,13 @@ Dictionary<string, byte[]> batchUpdates = new Dictionary<string, byte[]>() {
 
 List<string> batchDeletes = new List<string>() { "b/s/4" };
 
-
+//call add block with the variables from the example documentation -- messages 0 through 4
+await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches ); //change batches param to list of new Batch data type
+//await improved.SendBatch(1, easyHash, updates, deletes, batches);
 //new way
 Batch B = new Batch(easyHash, blockId, itemCount, subBatches, batchUpdates, batchDeletes);
 //new way
-await improved.SendBatch(B); 
-
-
-//call add block with the variables from the example documentation -- messages 0 through 4
-await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches ); //change batches param to list of new Batch data type
-await improved.SendBatch(1, easyHash, updates, deletes, batches);
+await improved.SendBatch(B); //messages 5 through 7
 
 
 Thread.Sleep(10000);
@@ -108,13 +92,15 @@ return;//end program, don't run first draft code below
 /// Code below is not used anymore, just there for reference, but getting to where it has no use so will remove it soon. 
 /// </summary>
 #region unused
+
+int hashId = 1234;
 //first pass/ first draft below --this code wont run currently --- we return before this code is hit, no need to review unless you are curious about a nonwrapped kafka lib
 //right now an empty dictionary
 Console.WriteLine("Creating Walter White");
-var WalterWhite = Meth.MethProducer.NewProducer("URL", "none", test, "WalterWhite");
+var WalterWhite = Meth.MethProducer.NewProducer("URL", "none", schemaMap, "WalterWhite");
 
 Console.WriteLine("Creating Jesse Pinkman");
-var JessePinkman = Meth.MethProducer.NewProducer("URL44", "othertopics", test, "JessePinkman");
+var JessePinkman = Meth.MethProducer.NewProducer("URL44", "othertopics", schemaMap, "JessePinkman");
 
 //Meth.MethProducer.AddBroker(WalterWhite, "URL2");
 

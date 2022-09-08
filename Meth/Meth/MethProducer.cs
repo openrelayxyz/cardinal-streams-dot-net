@@ -52,12 +52,29 @@ namespace Meth
             return _Producer.AddBrokers(newServer);
         }
 
+        public byte[] CombineByteArrays(byte[] start, byte[] end)
+        {
+            var s = new MemoryStream();
+            s.Write(start, 0, start.Length);
+            s.Write(end, 0, end.Length);
+            var array = s.ToArray();
+
+            return array;
+        }
 
         public byte[] AddPrefixByte(byte[] bArray, byte PreFixByte)
         {
             byte[] newArray = new byte[bArray.Length + 1];
             bArray.CopyTo(newArray, 1);
             newArray[0] = PreFixByte;
+            return newArray;
+        }
+
+        public byte[] AddPostFixByte(byte[] bArray, byte PostFixByte)
+        {
+            byte[] newArray = new byte[bArray.Length + 1];
+            bArray.CopyTo(newArray, 0);
+            newArray[newArray.Length - 1] = PostFixByte;
             return newArray;
         }
 
@@ -112,7 +129,7 @@ namespace Meth
             msg0.Value = encoded;
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
             messages.Add(msg0);
-            //instead of adding it to list here, send it not, to make sure message 0 arrives first
+            //instead of adding it to list here, send it now, to make sure message 0 arrives first
             #endregion messageZero           
 
             AddUpdatesToMessages(hash, updates, messages);
@@ -122,27 +139,30 @@ namespace Meth
             //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
             Console.WriteLine("");
             Console.WriteLine("");
+
+            //send each message in messages -- exception handling and making sure kafka messages send
+
             //test message that we never got to send
-            var message = new Message<string, string>(); //is this supposed to be the schema map?
-                                                         //pretty sure this is what kafka sends, need to nail down what structure this is
-                                                         //has to be created by params somehow, a real example would likely be helpful 
+            //var message = new Message<string, string>(); //is this supposed to be the schema map?
+            //                                             //pretty sure this is what kafka sends, need to nail down what structure this is
+            //                                             //has to be created by params somehow, a real example would likely be helpful 
             
             
-            message.Key = "Key-8-6---Roy";
-            message.Value = "TestValue-8-6---Roy";
-            //change to Produce Async, capture errors and log them --- 
+            //message.Key = "Key-8-6---Roy";
+            //message.Value = "TestValue-8-6---Roy";
+            ////change to Produce Async, capture errors and log them --- 
 
-            //have this be a new Task on it's own thread-- that way things dont get blocked
-            try
-            {
-                var deliveryResult = await _Producer.ProduceAsync(Topic, message);
+            ////have this be a new Task on it's own thread-- that way things dont get blocked
+            //try
+            //{
+            //    var deliveryResult = await _Producer.ProduceAsync(Topic, message);
 
-                Console.WriteLine("Delivery result status :" + deliveryResult.Status);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
-            }
+            //    Console.WriteLine("Delivery result status :" + deliveryResult.Status);
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
+            //}
             return;
         }
 
@@ -167,11 +187,8 @@ namespace Meth
                 byte[] post = Encoding.UTF8.GetBytes(u.Key); //for end of byte array
                 byte[] tmp = AddPrefixByte(hash, 0x03);
 
-                var s = new MemoryStream();
-                s.Write(tmp, 0, tmp.Length);
-                s.Write(post, 0, post.Length);
-                var key = s.ToArray();
-
+                var key = CombineByteArrays(tmp, post);
+                
                 m.Key = key;
                 m.Value = u.Value; //Avro encoding not needed for updates messages
                 messages.Add(m);
@@ -188,10 +205,8 @@ namespace Meth
                 byte[] post = Encoding.UTF8.GetBytes(d); //for end of byte array
                 byte[] tmp = AddPrefixByte(hash, 0x04);
 
-                var s = new MemoryStream();
-                s.Write(tmp, 0, tmp.Length);
-                s.Write(post, 0, post.Length);
-                var key = s.ToArray();
+                var key = CombineByteArrays(tmp, post);
+
                 //no avro encoding needed for deletes messages
                 m.Key = key;
                 //m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
@@ -202,16 +217,16 @@ namespace Meth
             }
         }
 
-
+        //todo fix to use regex --- currently wrong -- including things it should not be including
         private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
         {
             string result = "";
             foreach (var u in updates)
             {
                 //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
-                foreach (var letter in u.Key)
+                foreach (var letter in u.Key) //change to a check to see if it fits the SchemaMap regexes or not
                 {
-                    if (!SchemaMap.ContainsKey(letter.ToString()))
+                    if (!SchemaMap.ContainsKey(letter.ToString())) //no regex matches -- then added it here
                     {
                         if (!letter.Equals("/") && char.IsLetter(letter)) //this is a letter and not a number or a slash
                         {
@@ -252,19 +267,19 @@ namespace Meth
         private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
         {
             string result = "";
-            foreach (var key in SchemaMap.Keys)
+            foreach (var key in SchemaMap.Keys) //change keys to regex expressions
             {
                 int currentKeyCount = 0;
                 foreach (var entry in updates)
                 {
-                    if(entry.Key.Contains(key.First()))
+                    if(entry.Key.Contains(key.First())) //if entry key matches regex expression 
                     {
                         currentKeyCount++;
                     }
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = "\"" + key.ToString() + "/\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
+                    string toAdd = "\"" + key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
             }            
             //old hardcoded way for reference -- this worked, but did not handle every letter
@@ -292,7 +307,60 @@ namespace Meth
 
         public async Task SendBatch(Batch batch)
         {
-            //TODO
+            Console.WriteLine("SendBatch called");
+            //log batch values here? 
+            // key : $PrefixByte.$BlockHash.$BatchId
+            // value number of messages avroencoded 
+
+            var firstchunk = AddPrefixByte(batch.BlockHash, 0x01);
+            var key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
+            // TODO ^this is wrong, what if there are multiple entries in SubBatches, would need to send each one up... 
+            // dont forget to update this later to send each SubBatch value... but check with Austin, maybe there is only 1 per Batch
+            var messages = new List<Message<byte[], byte[]>>();
+            var header = new Message<byte[], byte[]>();//will just call message 5 the header message, there might be more than one of these in real world examples
+
+            header.Key = key;
+            header.Value = AvroEncoder.SerializeInt(batch.ItemCount);
+            Console.WriteLine("");
+            Console.WriteLine("SendBatch header message key : " + PrettyPrintByteArray(key));
+            Console.WriteLine("SendBatch header value avro encoding : " + PrettyPrintByteArray(header.Value) + " unencoded : " + batch.ItemCount);
+
+            messages.Add(header); // lets just send it now instead... 
+
+            var updates = new Message<byte[], byte[]>();//again just doing 1 message, need to extract into a loop that does it for all Updates
+            firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
+            key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
+            key = AddPostFixByte(key, 0x00); //go up by 1 for each update message? can you ++ a byte? 
+            updates.Key = key;
+            string unencoded = "SubBatchMsg\n{\n  \"updates\": {\"" + batch.Updates.First().Key + "\": " + PrettyPrintByteArray(batch.Updates.First().Value) + "}\n}";
+            byte[] encoded = AvroEncoder.Serialize(unencoded);
+            updates.Value = encoded;
+            Console.WriteLine("");
+            Console.WriteLine("SendBatch updates message key : " + PrettyPrintByteArray(key));
+            Console.WriteLine("SendBatch updates message value unencoded : " + unencoded);
+            Console.WriteLine("SendBatch updates message value avroencoded " + PrettyPrintByteArray(encoded));
+            Console.WriteLine("");
+            messages.Add(updates);
+
+            var deletes = new Message<byte[], byte[]>();
+            firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
+            key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
+            key = AddPostFixByte(key, 0x02); //go up by 1 for each update message? can you ++ a byte? 
+            //should this be 0x01 -- documentation seems off here --message 6 is 0x00 so id expect 7 to ve 0x01
+
+            deletes.Key = key;
+            unencoded = "SubBatchMsg\n{\n  \"delete\": [\"" + batch.Deletes.First() + "\"]\n}";
+            encoded = AvroEncoder.Serialize(unencoded);
+            deletes.Value = encoded;
+            Console.WriteLine("");
+            Console.WriteLine("SendBatch deletes message key : " + PrettyPrintByteArray(key));
+            Console.WriteLine("SendBatch deletes message value unencoded : " + unencoded);
+            Console.WriteLine("SendBatch deletes message value avroencoded " + PrettyPrintByteArray(encoded));
+            Console.WriteLine("");
+            messages.Add(deletes);
+            //send all messages in messages
+            //error checking for sending across kafka
+            return;
         }
         public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
