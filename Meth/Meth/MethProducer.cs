@@ -21,7 +21,7 @@ namespace Meth
         private IProducer<string, string> _Producer; //Producer is keyword, but internal class inacessible
         private string Topic;
         private string ReOrgTopic;
-        private Dictionary<string, string> SchemaMap;
+        private Dictionary<Regex, string> SchemaMap;
         private string brokerURL;            
 
         //Encapsolates a kafka producer, C# kafka lib has no way to store default topic in the producer... 
@@ -172,15 +172,16 @@ namespace Meth
             foreach (var u in updates)
             {
                 bool foundKey = false;
-                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
-                foreach(var letter in u.Key)
-                {
-                    if(SchemaMap.ContainsKey(letter.ToString()))
+                //if(SchemaMap.ContainsKey(letter.ToString()))
+                    foreach(var reg in SchemaMap)
                     {
-                        foundKey = true;
+                    //extract method 
+                        if (reg.Key.IsMatch(u.Key))
+                        {
+                            foundKey = true;
+                        }
                     }
-                }
-                if(!foundKey)
+                if (!foundKey)
                 {
                     continue; //skip sending message if not in schemaMap, go on to next entry in updates
                 }
@@ -189,17 +190,19 @@ namespace Meth
                 byte[] tmp = AddPrefixByte(hash, 0x03);
 
                 var key = CombineByteArrays(tmp, post);
-                
+
                 m.Key = key;
                 m.Value = u.Value; //Avro encoding not needed for updates messages
                 messages.Add(m);
 
                 Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
-            }
+            } 
         }
+        
 
         private void AddDeletesToMessages(byte[] hash, List<string> deletes, List<Message<byte[], byte[]>> messages)
         {
+            //do we always send deletes no matter what?
             foreach (var d in deletes)
             {
                 var m = new Message<byte[], byte[]>();
@@ -218,34 +221,40 @@ namespace Meth
             }
         }
 
-        //todo fix to use regex --- currently wrong -- including things it should not be including
         private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
         {
             string result = "";
             foreach (var u in updates)
             {
                 //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
-                foreach (var letter in u.Key) //change to a check to see if it fits the SchemaMap regexes or not
-                {
-                    if (!SchemaMap.ContainsKey(letter.ToString())) //no regex matches -- then added it here
+                //foreach (var letter in u.Key) //change to a check to see if it fits the SchemaMap regexes or not
+                //{
+                bool matchFound = false;
+                foreach(var reg in SchemaMap)
+                {                    
+                    if(reg.Key.IsMatch(u.Key))
                     {
-                        if (!letter.Equals("/") && char.IsLetter(letter)) //this is a letter and not a number or a slash
-                        {
-                            Console.WriteLine(" Update Key " + u.Key.ToString() + " not found in SchemaMap");
-                            Console.WriteLine(" Adding key and value to updates string");
-                            if (result.Equals(string.Empty))
-                            {
-                                result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
-                            }
-                            else
-                            {
-                                //if there are more than one we need a comma on new lines... TODO
-                                result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
-                            }
-                        }
+                        matchFound = true;
+                    }
+                    //TODO extract this into method
+                }
+                if(!matchFound)
+                {
+                    Console.WriteLine(" Update Key " + u.Key.ToString() + " not found in SchemaMap");
+                    Console.WriteLine(" Adding key and value to updates string");
+                    if (result.Equals(string.Empty))
+                    {
+                        result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                    }
+                    else
+                    {
+                        //if there are more than one we need a comma on new lines... TODO
+                        result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
                     }
                 }
+            
             }
+            
             result = result + "\n"; //add newline to last entry without comma
             return result;
         }
@@ -268,19 +277,20 @@ namespace Meth
         private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
         {
             string result = "";
-            foreach (var key in SchemaMap.Keys) //change keys to regex expressions
+            foreach (var entry in updates) //old way swapped inner and outer loops //foreach (var key in SchemaMap.Keys) //change keys to regex expressions
             {
                 int currentKeyCount = 0;
-                foreach (var entry in updates)
+                foreach (var key in SchemaMap.Keys)
                 {
-                    if(entry.Key.Contains(key.First())) //if entry key matches regex expression 
+                    if( key.IsMatch(entry.Key) ) //if entry key matches regex expression in SchemaMap
                     {
-                        currentKeyCount++;
+                        //make sure we can't double count the same entry by accident
+                        currentKeyCount++; //can more than one key match, if not, need to add here and then continue to next entry
                     }
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = "\"" + key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
+                    string toAdd = "\"" + entry.Key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
             }            
             //old hardcoded way for reference -- this worked, but did not handle every letter
