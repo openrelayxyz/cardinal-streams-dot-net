@@ -301,7 +301,7 @@ namespace Meth
             return result;
         }
 
-        //TODO Complete these 3
+        //TODO Reorg moved into another milestone
         public void ReOrg()//list of blocks? == a number and hash of block you are reorging to,
             //blocks will be sent via add block
             //once all blocks sent, call reorg done. 
@@ -316,62 +316,74 @@ namespace Meth
             //TODO
         }
 
-        public async Task SendBatch(Batch batch)
+        public async Task SendBatch(Batch batch) //is one header per batch a reasonable assumption?
         {
             Console.WriteLine("SendBatch called");
             //log batch values here? 
             // key : $PrefixByte.$BlockHash.$BatchId
             // value number of messages avroencoded 
-
-            var firstchunk = AddPrefixByte(batch.BlockHash, 0x01);
-            var key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
-            // TODO ^this is wrong, what if there are multiple entries in SubBatches, would need to send each one up... 
-            // dont forget to update this later to send each SubBatch value... but check with Austin, maybe there is only 1 per Batch
             var messages = new List<Message<byte[], byte[]>>();
+            var firstchunk = AddPrefixByte(batch.BlockHash, 0x01);
+            byte[] key;
             var header = new Message<byte[], byte[]>();//will just call message 5 the header message, there might be more than one of these in real world examples
+            string unencoded;
+            byte[] encoded;
 
-            header.Key = key;
-            header.Value = AvroEncoder.SerializeInt(batch.ItemCount);
-            Console.WriteLine("");
-            Console.WriteLine("SendBatch header message key : " + PrettyPrintByteArray(key));
-            Console.WriteLine("SendBatch header value avro encoding : " + PrettyPrintByteArray(header.Value) + " unencoded : " + batch.ItemCount);
+            foreach (var batchHeader in batch.SubBatches) //if there is only one batch header per Batch this can be removed
+            {                
+                key = CombineByteArrays(firstchunk, batchHeader.Value);
+               
+                header.Key = key;
+                //if there are more than one header we might need to reorg the Batch datatype a bit for below line
+                header.Value = AvroEncoder.SerializeInt(batch.ItemCount); //i think we need to store itemcount in subbatches ... will need to fix
+                Console.WriteLine("");
+                Console.WriteLine("SendBatch header message key : " + PrettyPrintByteArray(key));
+                Console.WriteLine("SendBatch header value avro encoding : " + PrettyPrintByteArray(header.Value) + " unencoded : " + batch.ItemCount);
 
-            messages.Add(header); // lets just send it now instead... 
+                messages.Add(header); // lets just send it now instead... 
+            }
 
-            var updates = new Message<byte[], byte[]>();//again just doing 1 message, need to extract into a loop that does it for all Updates
-            firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
-            key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
-            key = AddPostFixByte(key, 0x00); //go up by 1 for each update message? can you ++ a byte? 
-            updates.Key = key;
-            string unencoded = "SubBatchMsg\n{\n  \"updates\": {\"" + batch.Updates.First().Key + "\": " + PrettyPrintByteArray(batch.Updates.First().Value) + "}\n}";
-            byte[] encoded = AvroEncoder.Serialize(unencoded);
-            updates.Value = encoded;
-            Console.WriteLine("");
-            Console.WriteLine("SendBatch updates message key : " + PrettyPrintByteArray(key));
-            Console.WriteLine("SendBatch updates message value unencoded : " + unencoded);
-            Console.WriteLine("SendBatch updates message value avroencoded " + PrettyPrintByteArray(encoded));
-            Console.WriteLine("");
-            messages.Add(updates);
+            foreach (var up in batch.Updates) // support multiple updates in batch 
+            {
+                var updates = new Message<byte[], byte[]>();//again just doing 1 message, need to extract into a loop that does it for all Updates
+                firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
+                key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value); // can there be more than 1?
+                key = AddPostFixByte(key, 0x00); //go up by 1 for each update message? can you ++ a byte? 
+                updates.Key = key;
+                unencoded = "SubBatchMsg\n{\n  \"updates\": {\"" + up.Key + "\": " + PrettyPrintByteArray(up.Value) + "}\n}";
+                encoded = AvroEncoder.Serialize(unencoded);
+                updates.Value = encoded;
+                Console.WriteLine("");
+                Console.WriteLine("SendBatch updates message key : " + PrettyPrintByteArray(key));
+                Console.WriteLine("SendBatch updates message value unencoded : " + unencoded);
+                Console.WriteLine("SendBatch updates message value avroencoded " + PrettyPrintByteArray(encoded));
+                Console.WriteLine("");
+                messages.Add(updates);
+            }
 
-            var deletes = new Message<byte[], byte[]>();
-            firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
-            key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
-            key = AddPostFixByte(key, 0x02); //go up by 1 for each update message? can you ++ a byte? 
-            //should this be 0x01 -- documentation seems off here --message 6 is 0x00 so id expect 7 to ve 0x01
+            foreach (var del in batch.Deletes)
+            {
+                var deletes = new Message<byte[], byte[]>();
+                firstchunk = AddPrefixByte(batch.BlockHash, 0x02);
+                key = CombineByteArrays(firstchunk, batch.SubBatches.First().Value);
+                key = AddPostFixByte(key, 0x02); //go up by 1 for each update message? can you ++ a byte? 
+                                                 //should this be 0x01 -- documentation seems off here --message 6 is 0x00 so id expect 7 to ve 0x01
 
-            deletes.Key = key;
-            unencoded = "SubBatchMsg\n{\n  \"delete\": [\"" + batch.Deletes.First() + "\"]\n}";
-            encoded = AvroEncoder.Serialize(unencoded);
-            deletes.Value = encoded;
-            Console.WriteLine("");
-            Console.WriteLine("SendBatch deletes message key : " + PrettyPrintByteArray(key));
-            Console.WriteLine("SendBatch deletes message value unencoded : " + unencoded);
-            Console.WriteLine("SendBatch deletes message value avroencoded " + PrettyPrintByteArray(encoded));
-            Console.WriteLine("");
-            messages.Add(deletes);
-            //send all messages in messages
-            //error checking for sending across kafka
-            return;
+                deletes.Key = key;
+                unencoded = "SubBatchMsg\n{\n  \"delete\": [\"" + batch.Deletes.First() + "\"]\n}";
+                encoded = AvroEncoder.Serialize(unencoded);
+                deletes.Value = encoded;
+                Console.WriteLine("");
+                Console.WriteLine("SendBatch deletes message key : " + PrettyPrintByteArray(key));
+                Console.WriteLine("SendBatch deletes message value unencoded : " + unencoded);
+                Console.WriteLine("SendBatch deletes message value avroencoded " + PrettyPrintByteArray(encoded));
+                Console.WriteLine("");
+                messages.Add(deletes);
+            }
+                //send all messages in messages
+                //error checking for sending across kafka
+                return;
+            
         }
         public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
         {
