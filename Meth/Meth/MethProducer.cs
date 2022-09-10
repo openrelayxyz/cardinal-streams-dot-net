@@ -7,6 +7,7 @@ using Confluent.Kafka;
 using System;
 using Microsoft.Extensions.Configuration;
 using Avro;
+using System.Text.RegularExpressions;
 
 namespace Meth
 {
@@ -24,7 +25,7 @@ namespace Meth
         private string brokerURL;            
 
         //Encapsolates a kafka producer, C# kafka lib has no way to store default topic in the producer... 
-        public WrappedMethProducer(string kafkaBrokerURL, string topic, Dictionary<string, string> schemaMap, string specialname = null)
+        public WrappedMethProducer(string kafkaBrokerURL, string topic, Dictionary<Regex, string> schemaMap, string specialname = null)
         {
             var configuration = new ProducerConfig()
             {

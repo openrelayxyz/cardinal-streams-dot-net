@@ -24,7 +24,7 @@ newSchemaMap.Add(new Regex("^(q/).*"), "TopicA");
 //second pass
 Console.WriteLine("Creating Improved producer");
 
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , schemaMap); // "WrappedLib");
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , newSchemaMap); // "WrappedLib");
 
 //improved.AddBroker("AdditionalServerURL");
 
