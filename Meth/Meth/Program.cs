@@ -1,6 +1,7 @@
 ﻿
 using Meth;  //only thing you need to pull in to use lib,
-             //or you could have the project itself be a dependancy in VS
+using System.Text.RegularExpressions;
+//or you could have the project itself be a dependancy in VS
 
 
 Console.WriteLine("Hello, World!");
@@ -8,15 +9,22 @@ Console.WriteLine("Hello, World!");
 Dictionary<string, string> schemaMap = new Dictionary<string, string>(); //schema map param
 schemaMap.Add(@"a/", "TopicA");
 schemaMap.Add(@"b/", "TopicB"); //topics will be regex... lets get some examples of that soon in the code
-schemaMap.Add(@"q/", "TopicQ"); 
+schemaMap.Add(@"q/", "TopicQ");
 //"a/b/q/" -- inside schema map "a/TopicA" 
 //key is a/
 //Value is TopicA
 
+//Lets make this a Dictionary of type regex string instead
+Dictionary<Regex, string> newSchemaMap = new Dictionary<Regex, string>();
+newSchemaMap.Add(new Regex("^(a/).*"), "TopicA");
+newSchemaMap.Add(new Regex("^(b/).*"), "TopicA");
+newSchemaMap.Add(new Regex("^(q/).*"), "TopicA");
+
+
 //second pass
 Console.WriteLine("Creating Improved producer");
 
-var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , schemaMap); // "WrappedLib");
+var improved = new Meth.WrappedMethProducer("b-1.mattbroker.gfrhzv.c6.kafka.us-east-2.amazonaws.com:9092", "DefaultTopic" , newSchemaMap); // "WrappedLib");
 
 //improved.AddBroker("AdditionalServerURL");
 
