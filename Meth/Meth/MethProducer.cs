@@ -97,7 +97,7 @@ namespace Meth
         ///    batches param type might need tweeking since there are subbatches? 
         /// <returns></returns>
         public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
-        {
+        {                                                                                                                                                              //Eventually change this to List<Batch> batches -- find as is for now                                       
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
             var messages = new List<Message<byte[], byte[]>>();
             Console.WriteLine("");
@@ -131,7 +131,7 @@ namespace Meth
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
             //messages.Add(msg0);
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
-            await SendMessageNow(msg0, "Message0");
+            await SendMessageNow(msg0, "Message0", true); //true to block so message 0 sends first always
             //we want this to block so that message 0 is always first, other messages can be opened on new threads to keep things running in parallel 
 
             #endregion messageZero           
@@ -157,11 +157,27 @@ namespace Meth
             ////change to Produce Async, capture errors and log them --- 
 
             ////have this be a new Task on it's own thread-- that way things dont get blocked
-            //await SendMessageNow();
+            SendAllMessagesNow(messages);
             return;
         }
+        private async Task SendAllMessagesNow(List<Message<byte[], byte[]>> messageList)
+        {
+            Console.WriteLine("Sending all block messages now");
+            int total = messageList.Count;
 
-        private async Task SendMessageNow(Confluent.Kafka.Message<byte[], byte[]> message, string messageName = "")
+            await Task.Run(() =>
+            {
+                int count = 0;
+                foreach (var message in messageList)
+                {
+                    string name = "Message " + ++count + " of " + total + " messages";
+                    SendMessageNow(message, name);
+                }
+            });
+            Console.WriteLine(" All messages queued to send");
+        }
+
+        private async Task SendMessageNow(Confluent.Kafka.Message<byte[], byte[]> message, string messageName = "", bool block = false)
         {
             if(!string.IsNullOrEmpty(messageName))
             {
@@ -169,9 +185,19 @@ namespace Meth
             }
             try
             {
-                var deliveryResult = await _Producer.ProduceAsync(Topic, message);
-
-                Console.WriteLine("Delivery result status :" + deliveryResult.Status);
+                if (block)
+                {
+                    var deliveryResult = await _Producer.ProduceAsync(Topic, message);
+                    Console.WriteLine("Delivery result status :" + deliveryResult.Status);
+                }
+                else
+                {
+                    await Task.Run(() =>
+                    {
+                         var result = _Producer.ProduceAsync(Topic, message); //do not block or wait for result
+                         Console.WriteLine("Delivery result status :" + result.Status);
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -209,14 +235,16 @@ namespace Meth
                 m.Value = u.Value; //Avro encoding not needed for updates messages
                 messages.Add(m);
 
+                Console.WriteLine("");
                 Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+                Console.WriteLine("");
             } 
         }
         
 
         private void AddDeletesToMessages(byte[] hash, List<string> deletes, List<Message<byte[], byte[]>> messages)
         {
-            //do we always send deletes no matter what?
+            //do we always send deletes no matter what? or do we need to check them against SchemaMap?
             foreach (var d in deletes)
             {
                 var m = new Message<byte[], byte[]>();
@@ -230,19 +258,17 @@ namespace Meth
                 //m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
                 messages.Add(m);
 
+                Console.WriteLine("");
                 Console.WriteLine("Deletes message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + m.Value);
-
+                Console.WriteLine("");
             }
         }
 
-        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
+        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates) //do we need to do this for deletes also?
         {
             string result = "";
             foreach (var u in updates)
             {
-                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
-                //foreach (var letter in u.Key) //change to a check to see if it fits the SchemaMap regexes or not
-                //{
                 bool matchFound = false;
                 foreach(var reg in SchemaMap)
                 {                    
@@ -250,7 +276,7 @@ namespace Meth
                     {
                         matchFound = true;
                     }
-                    //TODO extract this into method
+                    //TODO refactor to extract this into method
                 }
                 if(!matchFound)
                 {
@@ -258,12 +284,11 @@ namespace Meth
                     Console.WriteLine(" Adding key and value to updates string");
                     if (result.Equals(string.Empty))
                     {
-                        result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                        result = result + "      \"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
                     }
                     else
                     {
-                        //if there are more than one we need a comma on new lines... TODO
-                        result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                        result = result + ",\n      \"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
                     }
                 }
             
@@ -279,7 +304,7 @@ namespace Meth
             //TODO update datatype, and function
             //batches datatype will change, but for now, just use first key in dictionary
             var first = batches.First();
-            result = "\"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
+            result = "      \"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
             return result;
         }
 
