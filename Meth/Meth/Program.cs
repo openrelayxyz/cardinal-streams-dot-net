@@ -17,8 +17,8 @@ schemaMap.Add(@"q/", "TopicQ");
 //Lets make this a Dictionary of type regex string instead
 Dictionary<Regex, string> newSchemaMap = new Dictionary<Regex, string>();
 newSchemaMap.Add(new Regex("^(a/).*"), "TopicA");
-newSchemaMap.Add(new Regex("^(b/).*"), "TopicA");
-newSchemaMap.Add(new Regex("^(q/).*"), "TopicA");
+newSchemaMap.Add(new Regex("^(b/).*"), "TopicB");
+newSchemaMap.Add(new Regex("^(q/).*"), "TopicQ");
 
 
 //second pass
