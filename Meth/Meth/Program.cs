@@ -79,6 +79,7 @@ Dictionary<string, byte[]> batchUpdates = new Dictionary<string, byte[]>() {
 List<string> batchDeletes = new List<string>() { "b/s/4" };
 
 //call add block with the variables from the example documentation -- messages 0 through 4
+//if sending multiple blocks back to back you might open a new thread for each one to prevent message 0 from blocking other blocks
 await improved.AddBlock(1337, easyHash, parent, weight, updates, deletes, batches ); //change batches param to list of new Batch data type
 //await improved.SendBatch(1, easyHash, updates, deletes, batches);
 //new way

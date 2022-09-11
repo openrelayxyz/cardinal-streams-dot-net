@@ -11,14 +11,13 @@ using System.Text.RegularExpressions;
 
 namespace Meth
 {
-    /// Not started yet -- left for milestone 1
-    /// SendBatch(batchid types.Hash, delete []string, update map[string][] byte) (map[string][] Message, error)
+    /// Not started yet -- ReOrg Milestone
     /// Reorg(number int64, hash types.Hash)
     /// ReorgDone(number int64, hash types.Hash)
 
     class WrappedMethProducer //custom class wrapping kafka library to add more data to the producer
     {
-        private IProducer<string, string> _Producer; //Producer is keyword, but internal class inacessible
+        private IProducer<byte[], byte[]> _Producer; //Producer is keyword, but internal class inacessible
         private string Topic;
         private string ReOrgTopic;
         private Dictionary<Regex, string> SchemaMap;
@@ -37,7 +36,7 @@ namespace Meth
                 //other config things?                
             };
 
-            _Producer = new ProducerBuilder<string, string>(configuration.AsEnumerable()).Build();
+            _Producer = new ProducerBuilder<byte[], byte[]>(configuration.AsEnumerable()).Build();
             Topic = topic;
             SchemaMap = schemaMap;
             brokerURL = kafkaBrokerURL;
@@ -97,7 +96,7 @@ namespace Meth
         ///    batches param type might need tweeking since there are subbatches? 
         /// <returns></returns>
         public async Task AddBlock(int number, byte[] hash, byte[] parentHash, byte[] weight, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
-        {
+        {                                                                                                                                                              //Eventually change this to List<Batch> batches -- find as is for now                                       
             Console.WriteLine("Adding Block for topic " + Topic + " and producer " + _Producer.Name);
             var messages = new List<Message<byte[], byte[]>>();
             Console.WriteLine("");
@@ -113,7 +112,7 @@ namespace Meth
             string w = "\"weight\": " + PrettyPrintByteArray(weight) + ",\n  ";
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
-            string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
+            string updatesstring = GetUpdatesCountStrings(updates, deletes); //update this method to be able to handle any letter combo currently only takes letters in the samples
             //add subbatch to updates string
             string subbatch = GetSubBatchString(batches);
             updatesstring = updatesstring + subbatch;
@@ -129,42 +128,68 @@ namespace Meth
             Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
             msg0.Value = encoded;
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
-            messages.Add(msg0);
+            //messages.Add(msg0);
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
+            await SendMessageNow(msg0, "Message0", true); //true to block so message 0 sends first always
+            //we want this to block so that message 0 is always first, other messages can be opened on new threads to keep things running in parallel 
+
             #endregion messageZero           
 
             AddUpdatesToMessages(hash, updates, messages);
 
             AddDeletesToMessages(hash, deletes, messages);
-            //For each message in messages send -- track any failures -- only log failures
-            //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
+
             Console.WriteLine("");
             Console.WriteLine("");
-
-            //send each message in messages -- exception handling and making sure kafka messages send
-
-            //test message that we never got to send
-            //var message = new Message<string, string>(); //is this supposed to be the schema map?
-            //                                             //pretty sure this is what kafka sends, need to nail down what structure this is
-            //                                             //has to be created by params somehow, a real example would likely be helpful 
-            
-            
-            //message.Key = "Key-8-6---Roy";
-            //message.Value = "TestValue-8-6---Roy";
-            ////change to Produce Async, capture errors and log them --- 
-
-            ////have this be a new Task on it's own thread-- that way things dont get blocked
-            //try
-            //{
-            //    var deliveryResult = await _Producer.ProduceAsync(Topic, message);
-
-            //    Console.WriteLine("Delivery result status :" + deliveryResult.Status);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
-            //}
+           
+            SendAllMessagesNow(messages);
             return;
+        }
+        private async Task SendAllMessagesNow(List<Message<byte[], byte[]>> messageList)
+        {
+            Console.WriteLine("Sending all block messages now");
+            int total = messageList.Count;
+
+            await Task.Run(() =>
+            {
+                int count = 0;
+                foreach (var message in messageList)
+                {
+                    string name = "Message " + ++count + " of " + total + " messages";
+                    SendMessageNow(message, name);
+                }
+            });
+            Console.WriteLine(" All messages queued to send");
+        }
+
+        private async Task SendMessageNow(Confluent.Kafka.Message<byte[], byte[]> message, string messageName = "", bool block = false)
+        {
+            if(!string.IsNullOrEmpty(messageName))
+            {
+                Console.WriteLine("Attempting to send message: " + messageName + " via kafka producer");
+            }
+            try
+            {
+                if (block)
+                {
+                    var deliveryResult = await _Producer.ProduceAsync(Topic, message);
+                    Console.WriteLine("Delivery result status :" + deliveryResult.Status);
+                }
+                else
+                {
+                    await Task.Run(() =>
+                    {
+                         var result = _Producer.ProduceAsync(Topic, message); //do not block or wait for result
+                         Console.WriteLine("Delivery result status :" + result.Status);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("");
+                Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
+                Console.WriteLine("");
+            }
         }
 
         private void AddUpdatesToMessages(byte[] hash, Dictionary<string, byte[]> updates, List<Message<byte[], byte[]>> messages)
@@ -195,14 +220,16 @@ namespace Meth
                 m.Value = u.Value; //Avro encoding not needed for updates messages
                 messages.Add(m);
 
+                Console.WriteLine("");
                 Console.WriteLine("Update message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + PrettyPrintByteArray(m.Value));
+                Console.WriteLine("");
             } 
         }
         
 
         private void AddDeletesToMessages(byte[] hash, List<string> deletes, List<Message<byte[], byte[]>> messages)
         {
-            //do we always send deletes no matter what?
+            //do we always send deletes no matter what? or do we need to check them against SchemaMap?
             foreach (var d in deletes)
             {
                 var m = new Message<byte[], byte[]>();
@@ -216,19 +243,17 @@ namespace Meth
                 //m.Value = new byte[] { }; //Empty byte array for deletes---might not even need to set m.Value here
                 messages.Add(m);
 
+                Console.WriteLine("");
                 Console.WriteLine("Deletes message created key =" + PrettyPrintByteArray(m.Key) + " Value =" + m.Value);
-
+                Console.WriteLine("");
             }
         }
 
-        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates)
+        private string GetNonSchemaUpdates(Dictionary<string, byte[]> updates) //do we need to do this for deletes also?
         {
             string result = "";
             foreach (var u in updates)
             {
-                //updates keys can have multiple letters, we need to check that if the updates key is included in the SchemaMap
-                //foreach (var letter in u.Key) //change to a check to see if it fits the SchemaMap regexes or not
-                //{
                 bool matchFound = false;
                 foreach(var reg in SchemaMap)
                 {                    
@@ -236,7 +261,7 @@ namespace Meth
                     {
                         matchFound = true;
                     }
-                    //TODO extract this into method
+                    //TODO refactor to extract this into method
                 }
                 if(!matchFound)
                 {
@@ -244,12 +269,11 @@ namespace Meth
                     Console.WriteLine(" Adding key and value to updates string");
                     if (result.Equals(string.Empty))
                     {
-                        result = result + "\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                        result = result + "      \"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
                     }
                     else
                     {
-                        //if there are more than one we need a comma on new lines... TODO
-                        result = result + ",\n\"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
+                        result = result + ",\n      \"" + u.Key.ToString() + "\": {\"value\": " + PrettyPrintByteArray(u.Value) + "}";
                     }
                 }
             
@@ -265,7 +289,7 @@ namespace Meth
             //TODO update datatype, and function
             //batches datatype will change, but for now, just use first key in dictionary
             var first = batches.First();
-            result = "\"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
+            result = "      \"" + first.Key.ToString() + "\": {\"subbatch\": " + PrettyPrintByteArray(first.Value) + "},\n";
             return result;
         }
 
@@ -274,9 +298,26 @@ namespace Meth
         // "a/": {"count": 1},
         // "b/": {"count": 1},
         // "q/": {"count": 2},
-        private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
+        private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates, List<string> deletes)
         {
             string result = "";
+            foreach(var del in deletes)
+            {
+                int delCount = 0;
+                foreach (var key in SchemaMap.Keys)
+                {
+                    if (key.IsMatch(del)) //if entry key matches regex expression in SchemaMap
+                    {
+                        //make sure we can't double count the same entry by accident
+                        delCount++; //can more than one key match, if not, need to add here and then continue to next entry
+                    }
+                }
+                if (delCount != 0)
+                {
+                    string toAdd = "      \"" + del + "\": { \"count\": " + delCount + "},\n"; result = result + toAdd;
+                }
+            }
+
             foreach (var entry in updates) //old way swapped inner and outer loops //foreach (var key in SchemaMap.Keys) //change keys to regex expressions
             {
                 int currentKeyCount = 0;
@@ -290,13 +331,11 @@ namespace Meth
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = "\"" + entry.Key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
+                    string toAdd = "      \"" + entry.Key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
             }            
-            //old hardcoded way for reference -- this worked, but did not handle every letter
-            //if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
-            //if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
-            //if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
+
+            
 
             return result;
         }
@@ -385,18 +424,12 @@ namespace Meth
                 return;
             
         }
-        public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
-        {
-            //TODO
-        }
+
 
         public void Flush()
         {
             _Producer.Flush();
         }
-        //methods here would be called on instances of the class
-        //addblock -- has access to the topic and schema map, unlike vanilla kafka lib
-        //reorg etc etc
     }
 
 
