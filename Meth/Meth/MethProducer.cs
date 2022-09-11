@@ -18,7 +18,7 @@ namespace Meth
 
     class WrappedMethProducer //custom class wrapping kafka library to add more data to the producer
     {
-        private IProducer<string, string> _Producer; //Producer is keyword, but internal class inacessible
+        private IProducer<byte[], byte[]> _Producer; //Producer is keyword, but internal class inacessible
         private string Topic;
         private string ReOrgTopic;
         private Dictionary<Regex, string> SchemaMap;
@@ -37,7 +37,7 @@ namespace Meth
                 //other config things?                
             };
 
-            _Producer = new ProducerBuilder<string, string>(configuration.AsEnumerable()).Build();
+            _Producer = new ProducerBuilder<byte[], byte[]>(configuration.AsEnumerable()).Build();
             Topic = topic;
             SchemaMap = schemaMap;
             brokerURL = kafkaBrokerURL;
@@ -129,8 +129,11 @@ namespace Meth
             Console.WriteLine(" Avro Encoded message 0 : " + PrettyPrintByteArray(encoded));
             msg0.Value = encoded;
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
-            messages.Add(msg0);
+            //messages.Add(msg0);
             //instead of adding it to list here, send it now, to make sure message 0 arrives first
+            await SendMessageNow(msg0, "Message0");
+            //we want this to block so that message 0 is always first, other messages can be opened on new threads to keep things running in parallel 
+
             #endregion messageZero           
 
             AddUpdatesToMessages(hash, updates, messages);
@@ -147,24 +150,35 @@ namespace Meth
             //var message = new Message<string, string>(); //is this supposed to be the schema map?
             //                                             //pretty sure this is what kafka sends, need to nail down what structure this is
             //                                             //has to be created by params somehow, a real example would likely be helpful 
-            
-            
+
+
             //message.Key = "Key-8-6---Roy";
             //message.Value = "TestValue-8-6---Roy";
             ////change to Produce Async, capture errors and log them --- 
 
             ////have this be a new Task on it's own thread-- that way things dont get blocked
-            //try
-            //{
-            //    var deliveryResult = await _Producer.ProduceAsync(Topic, message);
-
-            //    Console.WriteLine("Delivery result status :" + deliveryResult.Status);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
-            //}
+            //await SendMessageNow();
             return;
+        }
+
+        private async Task SendMessageNow(Confluent.Kafka.Message<byte[], byte[]> message, string messageName = "")
+        {
+            if(!string.IsNullOrEmpty(messageName))
+            {
+                Console.WriteLine("Attempting to send message: " + messageName + " via kafka producer");
+            }
+            try
+            {
+                var deliveryResult = await _Producer.ProduceAsync(Topic, message);
+
+                Console.WriteLine("Delivery result status :" + deliveryResult.Status);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("");
+                Console.WriteLine("ProduceAsync threw an exception : Short Message " + ex.Message + "\n Long Message : " + ex.StackTrace);
+                Console.WriteLine("");
+            }
         }
 
         private void AddUpdatesToMessages(byte[] hash, Dictionary<string, byte[]> updates, List<Message<byte[], byte[]>> messages)
