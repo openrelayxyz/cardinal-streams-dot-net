@@ -11,8 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace Meth
 {
-    /// Not started yet -- left for milestone 1
-    /// SendBatch(batchid types.Hash, delete []string, update map[string][] byte) (map[string][] Message, error)
+    /// Not started yet -- ReOrg Milestone
     /// Reorg(number int64, hash types.Hash)
     /// ReorgDone(number int64, hash types.Hash)
 
@@ -139,24 +138,10 @@ namespace Meth
             AddUpdatesToMessages(hash, updates, messages);
 
             AddDeletesToMessages(hash, deletes, messages);
-            //For each message in messages send -- track any failures -- only log failures
-            //for message in messages  -- send -- first lets send a single message below as a test for AddProducer
+
             Console.WriteLine("");
             Console.WriteLine("");
-
-            //send each message in messages -- exception handling and making sure kafka messages send
-
-            //test message that we never got to send
-            //var message = new Message<string, string>(); //is this supposed to be the schema map?
-            //                                             //pretty sure this is what kafka sends, need to nail down what structure this is
-            //                                             //has to be created by params somehow, a real example would likely be helpful 
-
-
-            //message.Key = "Key-8-6---Roy";
-            //message.Value = "TestValue-8-6---Roy";
-            ////change to Produce Async, capture errors and log them --- 
-
-            ////have this be a new Task on it's own thread-- that way things dont get blocked
+           
             SendAllMessagesNow(messages);
             return;
         }
@@ -439,18 +424,12 @@ namespace Meth
                 return;
             
         }
-        public async Task SendBatch(int batchId, byte[] hash, Dictionary<string, byte[]> updates, List<string> deletes, Dictionary<string, byte[]> batches)
-        {
-            //TODO
-        }
+
 
         public void Flush()
         {
             _Producer.Flush();
         }
-        //methods here would be called on instances of the class
-        //addblock -- has access to the topic and schema map, unlike vanilla kafka lib
-        //reorg etc etc
     }
 
 
