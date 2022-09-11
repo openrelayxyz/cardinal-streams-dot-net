@@ -113,7 +113,7 @@ namespace Meth
             string w = "\"weight\": " + PrettyPrintByteArray(weight) + ",\n  ";
             string p = "\"parent\": " + PrettyPrintByteArray(parentHash) + ",\n  ";
 
-            string updatesstring = GetUpdatesCountStrings(updates); //update this method to be able to handle any letter combo currently only takes letters in the samples
+            string updatesstring = GetUpdatesCountStrings(updates, deletes); //update this method to be able to handle any letter combo currently only takes letters in the samples
             //add subbatch to updates string
             string subbatch = GetSubBatchString(batches);
             updatesstring = updatesstring + subbatch;
@@ -274,9 +274,26 @@ namespace Meth
         // "a/": {"count": 1},
         // "b/": {"count": 1},
         // "q/": {"count": 2},
-        private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates)
+        private string GetUpdatesCountStrings(Dictionary<string, byte[]> updates, List<string> deletes)
         {
             string result = "";
+            foreach(var del in deletes)
+            {
+                int delCount = 0;
+                foreach (var key in SchemaMap.Keys)
+                {
+                    if (key.IsMatch(del)) //if entry key matches regex expression in SchemaMap
+                    {
+                        //make sure we can't double count the same entry by accident
+                        delCount++; //can more than one key match, if not, need to add here and then continue to next entry
+                    }
+                }
+                if (delCount != 0)
+                {
+                    string toAdd = "      \"" + del + "\": { \"count\": " + delCount + "},\n"; result = result + toAdd;
+                }
+            }
+
             foreach (var entry in updates) //old way swapped inner and outer loops //foreach (var key in SchemaMap.Keys) //change keys to regex expressions
             {
                 int currentKeyCount = 0;
@@ -290,13 +307,11 @@ namespace Meth
                 }
                 if (currentKeyCount != 0) 
                 {
-                    string toAdd = "\"" + entry.Key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
+                    string toAdd = "      \"" + entry.Key.ToString() + "\": { \"count\": " + currentKeyCount + "},\n"; result = result + toAdd; 
                 }
             }            
-            //old hardcoded way for reference -- this worked, but did not handle every letter
-            //if (aCount != 0) { string a = "a/\": { \"count\": " +aCount+"},}\n"; result = result + a; }
-            //if (bCount != 0) { string b = "b/\": { \"count\": " +bCount+"},}\n"; result = result + b; }
-            //if (qCount != 0) { string q = "q/\": { \"count\": " +qCount+ "},}\n"; result = result + q; }
+
+            
 
             return result;
         }
